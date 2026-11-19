@@ -85,7 +85,7 @@ function JourneyMarkers({onChoose}:{onChoose:(kind:'read'|'memorize')=>void}) {
     </group>)}
   </>;
 }
-function World({onNear,onEnter,onChoose}:{onNear:(v:boolean)=>void,onEnter:()=>void,onChoose:(kind:'read'|'memorize')=>void}) {:{onNear:(v:boolean)=>void,onEnter:()=>void}) {
+function World({onNear,onEnter,onChoose}:{onNear:(v:boolean)=>void,onEnter:()=>void,onChoose:(kind:'read'|'memorize')=>void}) {
   return <>
     <color attach="background" args={['#b7d9dd']}/><fog attach="fog" args={['#b7d9dd',22,85]}/>
     <ambientLight intensity={1.2}/><directionalLight position={[12,25,9]} intensity={2.4} castShadow shadow-mapSize={[1024,1024]}/>
