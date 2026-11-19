@@ -36,9 +36,9 @@ function Orb({item,onChoose,active}:{item:typeof sections[number];onChoose:(s:Se
     </Float>
   </group>;
 }
-function Centerpiece(){
+function Centerpiece({reduced}:{reduced:boolean}){
   const ring=useRef<THREE.Mesh>(null);
-  useFrame((_,dt)=>{if(ring.current)ring.current.rotation.z+=dt*.12});
+  useFrame((_,dt)=>{if(ring.current&&!reduced)ring.current.rotation.z+=dt*.12});
   return <group>
     <Float speed={.85} floatIntensity={.18} rotationIntensity={.03}>
       <mesh><sphereGeometry args={[1.65,40,32]}/><meshPhysicalMaterial color="#0f736d" metalness={.32} roughness={.19} emissive="#166d63" emissiveIntensity={.55} clearcoat={1}/></mesh>
@@ -50,15 +50,15 @@ function Centerpiece(){
     <pointLight color="#5ed4b9" intensity={12} distance={12}/>
   </group>;
 }
-function CameraRig({section}:{section:Section}){
+function CameraRig({section,reduced}:{section:Section;reduced:boolean}){
   useFrame(({camera},dt)=>{
-    const target=section==='home'?new THREE.Vector3(0,0,13):new THREE.Vector3(0,0,10.8);
-    camera.position.lerp(target,1-Math.exp(-2.4*dt));
+    const target=section==='home'?new THREE.Vector3(0,0,13):new THREE.Vector3(0,0,9.3);
+    camera.position.lerp(target,reduced?1:1-Math.exp(-2.4*dt));
     camera.lookAt(0,0,0);
   });
   return null;
 }
-function Scene({section,onChoose,reduced}:{section:Section;onChoose:(s:Section)=>void;reduced:boolean}){
+function Scene({section,onChoose,reduced,mobile}:{section:Section;onChoose:(s:Section)=>void;reduced:boolean;mobile:boolean}){
   return <>
     <color attach="background" args={['#061c26']}/>
     <fog attach="fog" args={['#061c26',15,32]}/>
@@ -66,9 +66,9 @@ function Scene({section,onChoose,reduced}:{section:Section;onChoose:(s:Section)=
     <directionalLight position={[5,8,7]} intensity={2.2} color="#fff2d4"/>
     <Stars radius={65} depth={45} count={reduced?400:1100} factor={3} saturation={.4} fade speed={reduced?0:.3}/>
     {!reduced&&<Sparkles count={55} scale={[17,11,8]} size={1.7} speed={.2} color="#b8e6d4"/>}
-    <Centerpiece/>
-    {sections.map(item=><Orb key={item.id} item={item} onChoose={onChoose} active={section===item.id}/>)}
-    <CameraRig section={section}/>
+    <Centerpiece reduced={reduced}/>
+    {!mobile&&sections.map(item=><Orb key={item.id} item={item} onChoose={onChoose} active={section===item.id}/>)}
+    <CameraRig section={section} reduced={reduced}/>
   </>;
 }
 function getStoredNumber(key:string,fallback:number){
@@ -81,13 +81,15 @@ function App(){
   const [goal,setGoal]=useState(()=>getStoredNumber('qw-goal',2));
   const [completed,setCompleted]=useState(0);
   const [day,setDay]=useState(()=>new Date().toLocaleDateString('en-CA'));
+  const [mobile,setMobile]=useState(()=>typeof window!=='undefined'&&window.innerWidth<850);
+  useEffect(()=>{const update=()=>setMobile(window.innerWidth<850);window.addEventListener('resize',update);return()=>window.removeEventListener('resize',update)},[]);
   const [reduced,setReduced]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   useEffect(()=>{try{const v=JSON.parse(localStorage.getItem('quran-world-progress')||'{}');if(v.day===day)setCompleted(Math.max(0,Number(v.completed)||0))}catch{}},[day]);
   useEffect(()=>{try{localStorage.setItem('quran-world-progress',JSON.stringify({day,goal,completed}));localStorage.setItem('qw-goal',String(goal))}catch{}},[day,goal,completed]);
   const completePage=()=>{const today=new Date().toLocaleDateString('en-CA');if(today!==day){setDay(today);setCompleted(1)}else setCompleted(n=>Math.min(goal,n+1))};
   const surah=surahs[surahIndex];
   return <main dir="rtl">
-    <div className="world-canvas" aria-hidden="true"><Canvas dpr={[1,1.5]} gl={{antialias:true,powerPreference:'high-performance'}} camera={{position:[0,0,13],fov:50}}><Suspense fallback={null}><Scene section={section} onChoose={setSection} reduced={reduced}/></Suspense></Canvas></div>
+    <div className="world-canvas" aria-hidden="true"><Canvas dpr={[1,1.5]} gl={{antialias:true,powerPreference:'high-performance'}} camera={{position:[0,0,13],fov:50}}><Suspense fallback={null}><Scene section={section} onChoose={setSection} reduced={reduced} mobile={mobile}/></Suspense></Canvas></div>
     <header className="topbar"><div className="brand"><span className="brand-mark">۞</span><div><strong>عالم القرآن</strong><small>رحلتك مع القرآن تبدأ هنا</small></div></div><span className="version">تجربة تفاعلية · v0.5</span></header>
     {section==='home'?<section className="welcome"><span className="eyebrow">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span><h1>رحلتك في عالم القرآن</h1><p>اختر عالمك من الدوائر المضيئة، وابدأ القراءة أو خطط لختمتك.</p></section>:<section className="content-panel" aria-label="محتوى القسم">
       <div className="panel-head"><button className="back" onClick={()=>setSection('home')}>→ العودة للعالم</button><span className="panel-kicker">عالم القرآن</span></div>
@@ -97,6 +99,7 @@ function App(){
         <p className="reader-note">هذه نسخة تجريبية محدودة. قبل إطلاق المصحف الكامل سنعتمد مصدرًا قرآنيًا موثقًا ونراجع الرسم والضبط وترقيم الآيات.</p>
       </>:section==='khatma'?<><h1>◈ خطة الختمة</h1><p className="muted">حدد هدفك اليومي وسجّل ما قرأته. التقدم محفوظ على هذا الجهاز مؤقتًا.</p><label className="goal-label">الهدف اليومي <select value={goal} onChange={e=>{setGoal(Number(e.target.value));setCompleted(n=>Math.min(n,Number(e.target.value)))}}>{[1,2,3,4,5,6,8,10,15,20].map(n=><option key={n} value={n}>{n} صفحة</option>)}</select></label><div className="progress-track"><div style={{width:(completed/goal*100)+'%'}}/></div><p>أنجزت {completed} من {goal} صفحات اليوم</p><button className="primary" onClick={completePage} disabled={completed>=goal&&day===new Date().toLocaleDateString('en-CA')}>✓ أنجزت صفحة</button></>:<><h1>{sections.find(s=>s.id===section)?.label}</h1><p className="muted">هذا القسم قيد التطوير. سنربطه بحسابك وخطة رحلتك القرآنية في المراحل القادمة.</p><button className="primary" onClick={()=>setSection('read')}>ابدأ بقراءة القرآن</button></>}
     </section>}
+    {section==='home'&&<nav className="mobile-orbits" aria-label="اختر قسمًا">{sections.map(item=><button key={item.id} onClick={()=>setSection(item.id)}><span className="mobile-orb-symbol" style={{borderColor:item.color,color:item.color}}>{item.symbol}</span><strong>{item.label}</strong></button>)}</nav>}
     <nav className="quick-nav" aria-label="أقسام الموقع">{sections.map(item=><button key={item.id} className={section===item.id?'selected':''} onClick={()=>setSection(item.id)}>{item.label}</button>)}</nav>
     <button className="motion-toggle" onClick={()=>setReduced(v=>!v)} aria-label={reduced?'تشغيل الحركة':'تقليل الحركة'}>{reduced?'تشغيل الحركة':'تقليل الحركة'}</button>
     <footer>عالم القرآن · نسخة تجريبية — الحسابات والمزامنة غير متاحين بعد</footer>
