@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Sky, Text } from '@react-three/drei';
+import { Sky, Text, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import './style.css';
 
@@ -27,7 +27,9 @@ function Portal({onEnter}:{onEnter:()=>void}) {
   return <group position={[0,0,-14]}>
     <mesh position={[0,3,0]} castShadow><torusGeometry args={[2.4,.4,12,48]}/><meshStandardMaterial color="#e6d6a5" metalness={.65} roughness={.3}/></mesh>
     <mesh ref={light} position={[0,3,0.05]}><torusGeometry args={[2.1,.08,8,48]}/><meshBasicMaterial color="#8ef7e1"/></mesh>
-    <mesh position={[0,3,0]}><circleGeometry args={[2.1,48]}/><meshBasicMaterial color="#50bba6" transparent opacity={.22} side={THREE.DoubleSide}/></mesh>
+    <mesh position={[0,3,0]}><circleGeometry args={[2.1,48]}/><meshBasicMaterial color="#50bba6" transparent opacity={.32} side={THREE.DoubleSide}/></mesh>
+    <pointLight position={[0,3,1]} intensity={14} distance={12} color="#70f7d5"/>
+    <Sparkles count={55} scale={[5,7,3]} size={4} speed={.5} color="#e6ffcf" position={[0,3,0]}/>
     <Text position={[0,6.4,0]} fontSize={.65} color="#fff3c9" anchorX="center">QURAN CITY</Text>
     <mesh position={[0,.35,0]} onClick={onEnter}><boxGeometry args={[4.5,.7,1.2]}/><meshStandardMaterial color="#bda47a"/></mesh>
   </group>;
@@ -36,6 +38,9 @@ function Player({onNear}:{onNear:(v:boolean)=>void}) {
   const ref=useRef<THREE.Group>(null);
   const near=useRef(false);
   const facing=useRef(0);
+  const walk=useRef(0);
+  const leftLeg=useRef<THREE.Group>(null);
+  const rightLeg=useRef<THREE.Group>(null);
   useFrame(({camera},dt)=>{
     const p=ref.current;if(!p)return;
     const dx=Number(held.has('d')||held.has('arrowright'))-Number(held.has('a')||held.has('arrowleft'));
@@ -43,7 +48,10 @@ function Player({onNear}:{onNear:(v:boolean)=>void}) {
     const len=Math.hypot(dx,dz)||1;const speed=held.has('shift')?7:4;
     p.position.x=THREE.MathUtils.clamp(p.position.x+dx/len*speed*dt,-24,24);
     p.position.z=THREE.MathUtils.clamp(p.position.z+dz/len*speed*dt,-22,22);
-    if(dx||dz){facing.current=Math.atan2(-dx,-dz);p.rotation.y=THREE.MathUtils.damp(p.rotation.y,facing.current,10,dt);}
+    if(dx||dz){facing.current=Math.atan2(-dx,-dz);p.rotation.y=THREE.MathUtils.damp(p.rotation.y,facing.current,10,dt);walk.current+=dt*speed*2.2;}
+    const stride=(dx||dz)?Math.sin(walk.current)*.45:0;
+    if(leftLeg.current)leftLeg.current.rotation.x=THREE.MathUtils.damp(leftLeg.current.rotation.x,stride,9,dt);
+    if(rightLeg.current)rightLeg.current.rotation.x=THREE.MathUtils.damp(rightLeg.current.rotation.x,-stride,9,dt);
     const target=new THREE.Vector3(p.position.x+7,p.position.y+7,p.position.z+12);
     camera.position.lerp(target,1-Math.exp(-3.8*dt));
     const look=new THREE.Vector3(p.position.x,p.position.y+1.45,p.position.z-2);
@@ -54,8 +62,18 @@ function Player({onNear}:{onNear:(v:boolean)=>void}) {
   return <group ref={ref} position={[0,0,9]}>
     <mesh position={[0,1.35,0]} castShadow><capsuleGeometry args={[.42,1.2,6,12]}/><meshStandardMaterial color="#e7e1cc"/></mesh>
     <mesh position={[0,2.5,0]} castShadow><sphereGeometry args={[.42,16,12]}/><meshStandardMaterial color="#cba07c"/></mesh>
-    <mesh position={[-.22,.45,0]} castShadow><boxGeometry args={[.25,.9,.35]}/><meshStandardMaterial color="#243e4a"/></mesh>
-    <mesh position={[.22,.45,0]} castShadow><boxGeometry args={[.25,.9,.35]}/><meshStandardMaterial color="#243e4a"/></mesh>
+    <group ref={leftLeg} position={[-.22,.85,0]}><mesh position={[0,-.4,0]} castShadow><boxGeometry args={[.25,.85,.35]}/><meshStandardMaterial color="#243e4a"/></mesh></group>
+    <group ref={rightLeg} position={[.22,.85,0]}><mesh position={[0,-.4,0]} castShadow><boxGeometry args={[.25,.85,.35]}/><meshStandardMaterial color="#243e4a"/></mesh></group>
+  </group>;
+}
+function Rock({x,z,s=1}:{x:number,z:number,s?:number}) {
+  return <mesh position={[x,.22*s,z]} scale={[s*1.3,s*.6,s]} castShadow receiveShadow><dodecahedronGeometry args={[1,0]}/><meshStandardMaterial color="#8c9586" roughness={1}/></mesh>;
+}
+function Shrine({x,z}:{x:number,z:number}) {
+  return <group position={[x,0,z]}>
+    <mesh position={[0,.6,0]} castShadow><cylinderGeometry args={[.85,1,1.2,8]}/><meshStandardMaterial color="#c9b996"/></mesh>
+    <mesh position={[0,1.55,0]} castShadow><sphereGeometry args={[.8,12,8,0,Math.PI*2,0,Math.PI/2]}/><meshStandardMaterial color="#e8d6a7" metalness={.15}/></mesh>
+    <mesh position={[0,2.4,0]}><sphereGeometry args={[.12,10,10]}/><meshStandardMaterial color="#f7d477" emissive="#f7b943" emissiveIntensity={1.2}/></mesh>
   </group>;
 }
 function World({onNear,onEnter}:{onNear:(v:boolean)=>void,onEnter:()=>void}) {
@@ -65,6 +83,10 @@ function World({onNear,onEnter}:{onNear:(v:boolean)=>void,onEnter:()=>void}) {
     <Sky sunPosition={[5,7,-12]} turbidity={7}/>
     <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[180,180]}/><meshStandardMaterial color="#73a47d"/></mesh>
     <mesh position={[0,.025,-3]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[4.5,35]}/><meshStandardMaterial color="#c9b795"/></mesh>
+    <mesh position={[0,-.18,-32]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[20,64]}/><meshStandardMaterial color="#81b9a2"/></mesh>
+    <Sparkles count={110} scale={[48,9,52]} position={[0,4,-4]} size={1.8} speed={.2} color="#f9eac3"/>
+    <Shrine x={-8} z={-10}/><Shrine x={9} z={-17}/>
+    {Array.from({length:24},(_,i)=>{const side=i%2?1:-1;return <Rock key={i} x={side*(5+i*11%17)} z={-23+i*17%47} s={.35+(i%5)*.14}/>})}
     {Array.from({length:22},(_,i)=>{const x=(i%2?1:-1)*(6+(i*7%17));const z=-21+(i*13%43);return <Tree key={i} x={x} z={z} s={.7+(i%4)*.16}/>})}
     <Portal onEnter={onEnter}/><Player onNear={onNear}/>
   </>;
@@ -75,10 +97,10 @@ function App(){
   const [open,setOpen]=useState(false);
   const mobile=(key:string,active:boolean)=>{if(active)held.add(key);else held.delete(key)};
   return <main><Canvas shadows camera={{position:[7,8,21],fov:55}}><World onNear={setNear} onEnter={()=>setOpen(true)}/></Canvas>
-    <header><h1>عالم القرآن 3D</h1><p>وادي البداية • الإصدار التجريبي 0.1</p></header>
+    <header><h1>عالم القرآن 3D</h1><p>وادي النور • الإصدار التجريبي 0.2</p></header>
     <aside>تحرّك بالأسهم أو WASD • الكاميرا تتبع الشخصية • Shift للجري</aside>
     {near&&<button className="enter" onClick={()=>setOpen(true)}>دخول بوابة مدينة القرآن</button>}
-    {open&&<section className="dialog"><h2>مدينة القرآن</h2><p>وصلت إلى البوابة! ستُفتح المدينة في المرحلة القادمة بإذن الله.</p><button onClick={()=>setOpen(false)}>العودة إلى الوادي</button></section>}
+    {open&&<section className="dialog"><h2>مدينة القرآن</h2><p>أحسنت الوصول إلى بوابة مدينة القرآن! هذه بداية الرحلة؛ في التحديثات القادمة ستُفتح مسارات الختمة والحفظ داخل المدينة.</p><button onClick={()=>setOpen(false)}>العودة إلى الوادي</button></section>}
     <nav className="pad" aria-label="أزرار الحركة">{[['↑','w'],['←','a'],['↓','s'],['→','d']].map(([label,key])=><button key={key} onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);mobile(key,true)}} onPointerUp={()=>mobile(key,false)} onPointerCancel={()=>mobile(key,false)}>{label}</button>)}</nav>
   </main>;
 }
