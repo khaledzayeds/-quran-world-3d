@@ -20,7 +20,6 @@ export default function QuranReader(){
  const [reciterId,setReciterId]=useState<number|null>(null);
  const [reciterError,setReciterError]=useState('');
  const [audioError,setAudioError]=useState('');
- const [activeAyah,setActiveAyah]=useState<number|null>(null);
  const audio=useRef<HTMLAudioElement|null>(null);
  useEffect(()=>{
   const controller=new AbortController();
@@ -49,7 +48,7 @@ export default function QuranReader(){
   if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
  },[chapter,reciterId]);
  useEffect(()=>{
-  const controller=new AbortController();setLoading(true);setError('');setData(null);setPlaying(false);setActiveAyah(null);
+  const controller=new AbortController();setLoading(true);setError('');setData(null);setPlaying(false);
   if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
   const cached=cache.get(chapter);
   if(cached){setData(cached);setLoading(false);return()=>controller.abort()}
