@@ -4,6 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, Html, Sparkles, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import './style.css';
+import QuranReader from './QuranReader';
 
 type Section = 'home' | 'read' | 'khatma' | 'memorize' | 'review' | 'achievements';
 const sections: {id:Exclude<Section,'home'>;label:string;subtitle:string;symbol:string;color:string;position:[number,number,number]}[] = [
@@ -13,12 +14,7 @@ const sections: {id:Exclude<Section,'home'>;label:string;subtitle:string;symbol:
   {id:'review',label:'المراجعة',subtitle:'ثبّت ما حفظت',symbol:'↻',color:'#8bbfff',position:[3.9,-1.6,-1]},
   {id:'achievements',label:'الإنجازات',subtitle:'تابع تقدمك',symbol:'★',color:'#f2adab',position:[0,-3,-2]}
 ];
-const surahs = [
-  {name:'الفاتحة',number:1,verses:['بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ','الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ','الرَّحْمَٰنِ الرَّحِيمِ','مَالِكِ يَوْمِ الدِّينِ','إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ','اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ','صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ']},
-  {name:'الإخلاص',number:112,verses:['قُلْ هُوَ اللَّهُ أَحَدٌ','اللَّهُ الصَّمَدُ','لَمْ يَلِدْ وَلَمْ يُولَدْ','وَلَمْ يَكُنْ لَهُ كُفُوًا أَحَدٌ']},
-  {name:'الفلق',number:113,verses:['قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ','مِنْ شَرِّ مَا خَلَقَ','وَمِنْ شَرِّ غَاسِقٍ إِذَا وَقَبَ','وَمِنْ شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ','وَمِنْ شَرِّ حَاسِدٍ إِذَا حَسَدَ']},
-  {name:'الناس',number:114,verses:['قُلْ أَعُوذُ بِرَبِّ النَّاسِ','مَلِكِ النَّاسِ','إِلَٰهِ النَّاسِ','مِنْ شَرِّ الْوَسْوَاسِ الْخَنَّاسِ','الَّذِي يُوَسْوِسُ فِي صُدُورِ النَّاسِ','مِنَ الْجِنَّةِ وَالنَّاسِ']}
-];
+
 function Orb({item,onChoose,active}:{item:typeof sections[number];onChoose:(s:Section)=>void;active:boolean}) {
   const ref=useRef<THREE.Group>(null);
   useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.18});
@@ -76,8 +72,6 @@ function getStoredNumber(key:string,fallback:number){
 }
 function App(){
   const [section,setSection]=useState<Section>('home');
-  const [surahIndex,setSurahIndex]=useState(0);
-  const [fontSize,setFontSize]=useState(27);
   const [goal,setGoal]=useState(()=>getStoredNumber('qw-goal',2));
   const [completed,setCompleted]=useState(0);
   const [day,setDay]=useState(()=>new Date().toLocaleDateString('en-CA'));
@@ -87,17 +81,12 @@ function App(){
   useEffect(()=>{try{const v=JSON.parse(localStorage.getItem('quran-world-progress')||'{}');if(v.day===day)setCompleted(Math.max(0,Number(v.completed)||0))}catch{}},[day]);
   useEffect(()=>{try{localStorage.setItem('quran-world-progress',JSON.stringify({day,goal,completed}));localStorage.setItem('qw-goal',String(goal))}catch{}},[day,goal,completed]);
   const completePage=()=>{const today=new Date().toLocaleDateString('en-CA');if(today!==day){setDay(today);setCompleted(1)}else setCompleted(n=>Math.min(goal,n+1))};
-  const surah=surahs[surahIndex];
   return <main dir="rtl">
     <div className="world-canvas" aria-hidden="true"><Canvas dpr={[1,1.5]} gl={{antialias:true,powerPreference:'high-performance'}} camera={{position:[0,0,13],fov:50}}><Suspense fallback={null}><Scene section={section} onChoose={setSection} reduced={reduced} mobile={mobile}/></Suspense></Canvas></div>
-    <header className="topbar"><div className="brand"><span className="brand-mark">۞</span><div><strong>عالم القرآن</strong><small>رحلتك مع القرآن تبدأ هنا</small></div></div><span className="version">تجربة تفاعلية · v0.5</span></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">۞</span><div><strong>عالم القرآن</strong><small>رحلتك مع القرآن تبدأ هنا</small></div></div><span className="version">تجربة تفاعلية · v0.6</span></header>
     {section==='home'?<section className="welcome"><span className="eyebrow">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span><h1>رحلتك في عالم القرآن</h1><p>اختر عالمك من الدوائر المضيئة، وابدأ القراءة أو خطط لختمتك.</p></section>:<section className="content-panel" aria-label="محتوى القسم">
       <div className="panel-head"><button className="back" onClick={()=>setSection('home')}>→ العودة للعالم</button><span className="panel-kicker">عالم القرآن</span></div>
-      {section==='read'?<><h1>📖 قراءة القرآن الكريم</h1><p className="muted">نموذج قراءة أولي للسور القصيرة. المصحف الكامل والتلاوة قيد الإعداد.</p>
-        <div className="reader-tools"><label>السورة <select value={surahIndex} onChange={e=>setSurahIndex(Number(e.target.value))}>{surahs.map((s,i)=><option key={s.number} value={i}>{s.name}</option>)}</select></label><div className="font-tools"><button onClick={()=>setFontSize(n=>Math.max(20,n-2))} aria-label="تصغير الخط">أ−</button><button onClick={()=>setFontSize(n=>Math.min(42,n+2))} aria-label="تكبير الخط">أ+</button></div></div>
-        <article className="mushaf"><div className="surah-title">سُورَةُ {surah.name}</div>{surah.number!==1&&<p className="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>}<p className="verses" style={{fontSize}}>{surah.verses.map((verse,i)=><React.Fragment key={i}>{verse} <span className="verse-number">﴿{i+1}﴾</span> </React.Fragment>)}</p></article>
-        <p className="reader-note">هذه نسخة تجريبية محدودة. قبل إطلاق المصحف الكامل سنعتمد مصدرًا قرآنيًا موثقًا ونراجع الرسم والضبط وترقيم الآيات.</p>
-      </>:section==='khatma'?<><h1>◈ خطة الختمة</h1><p className="muted">حدد هدفك اليومي وسجّل ما قرأته. التقدم محفوظ على هذا الجهاز مؤقتًا.</p><label className="goal-label">الهدف اليومي <select value={goal} onChange={e=>{setGoal(Number(e.target.value));setCompleted(n=>Math.min(n,Number(e.target.value)))}}>{[1,2,3,4,5,6,8,10,15,20].map(n=><option key={n} value={n}>{n} صفحة</option>)}</select></label><div className="progress-track"><div style={{width:(completed/goal*100)+'%'}}/></div><p>أنجزت {completed} من {goal} صفحات اليوم</p><button className="primary" onClick={completePage} disabled={completed>=goal&&day===new Date().toLocaleDateString('en-CA')}>✓ أنجزت صفحة</button></>:<><h1>{sections.find(s=>s.id===section)?.label}</h1><p className="muted">هذا القسم قيد التطوير. سنربطه بحسابك وخطة رحلتك القرآنية في المراحل القادمة.</p><button className="primary" onClick={()=>setSection('read')}>ابدأ بقراءة القرآن</button></>}
+      {section==='read'?<QuranReader/>:section==='khatma'?<><h1>◈ خطة الختمة</h1><p className="muted">حدد هدفك اليومي وسجّل ما قرأته. التقدم محفوظ على هذا الجهاز مؤقتًا.</p><label className="goal-label">الهدف اليومي <select value={goal} onChange={e=>{setGoal(Number(e.target.value));setCompleted(n=>Math.min(n,Number(e.target.value)))}}>{[1,2,3,4,5,6,8,10,15,20].map(n=><option key={n} value={n}>{n} صفحة</option>)}</select></label><div className="progress-track"><div style={{width:(completed/goal*100)+'%'}}/></div><p>أنجزت {completed} من {goal} صفحات اليوم</p><button className="primary" onClick={completePage} disabled={completed>=goal&&day===new Date().toLocaleDateString('en-CA')}>✓ أنجزت صفحة</button></>:<><h1>{sections.find(s=>s.id===section)?.label}</h1><p className="muted">هذا القسم قيد التطوير. سنربطه بحسابك وخطة رحلتك القرآنية في المراحل القادمة.</p><button className="primary" onClick={()=>setSection('read')}>ابدأ بقراءة القرآن</button></>}
     </section>}
     {section==='home'&&<nav className="mobile-orbits" aria-label="اختر قسمًا">{sections.map(item=><button key={item.id} onClick={()=>setSection(item.id)}><span className="mobile-orb-symbol" style={{borderColor:item.color,color:item.color}}>{item.symbol}</span><strong>{item.label}</strong></button>)}</nav>}
     <nav className="quick-nav" aria-label="أقسام الموقع">{sections.map(item=><button key={item.id} className={section===item.id?'selected':''} onClick={()=>setSection(item.id)}>{item.label}</button>)}</nav>
