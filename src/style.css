@@ -33,3 +33,16 @@
 }
 @media(max-width:380px){.mobile-orbits{top:46%;gap:6px}.mobile-orbits button{padding:6px}.mobile-orb-symbol{width:31px;height:31px;flex-basis:31px}.mobile-orbits strong{font-size:.68rem}.welcome h1{font-size:1.16rem}.welcome p{font-size:.66rem}}
 @media(max-height:640px) and (max-width:849px){.welcome{top:10%}.mobile-orbits{top:43%;max-height:34vh}.content-panel{top:12%;max-height:calc(100dvh - 145px)}}
+
+/* Quran reader: selectable semantic Arabic text, touch-friendly playback */
+.quran-reader{min-width:0}.quran-reader .reader-tools{flex-wrap:wrap}
+.quran-reader .reader-tools select{max-width:min(68vw,320px);min-width:0}
+.audio-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:8px 0 18px}
+.audio-controls .primary{margin:0}.audio-controls span{color:#63776e;font-size:.76rem}
+.ayah{display:inline}.active-ayah{background:#e9eed0;border-radius:5px}
+.quran-reader .verse-number{font-family:'Amiri',serif;display:inline;color:#956f33;font-size:.78em;border:0;background:transparent;padding:0 3px;white-space:nowrap;vertical-align:baseline;cursor:pointer}
+.quran-reader .verse-number:focus-visible{outline:2px solid #1c7c6b;border-radius:5px}
+.reader-error{color:#8c2c27;background:#fff1ee;padding:12px;border-radius:10px;margin:12px 0}.reader-error button{margin-inline-start:8px;border:0;background:#f0d4cf;border-radius:8px;padding:5px}
+.reader-loading{text-align:center;padding:35px;color:#63776e}
+.reader-note a{color:#1b6c61;text-decoration:underline}
+@media(max-width:849px){.quran-reader .reader-tools{gap:8px}.quran-reader .reader-tools label{flex-wrap:wrap}.quran-reader .mushaf{padding:18px 12px}.quran-reader .verses{line-height:2.25}.audio-controls{gap:8px}}
