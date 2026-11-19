@@ -3,6 +3,10 @@ const API='https://api.alquran.cloud/v1';
 type Chapter={number:number;name:string;englishName:string;numberOfAyahs:number};
 type Ayah={number:number;numberInSurah:number;text:string;page:number};
 type Surah={number:number;name:string;ayahs:Ayah[];numberOfAyahs:number};
+type Mushaf={id:number;name:string;server:string;surah_list:string};
+type Reciter={id:number;name:string;moshaf:Mushaf[]};
+const requestedReciters=['محمد عبادة','إسلام صبحي','محمد صديق المنشاوي','أحمد بن علي العجمي'];
+const normalize=(name:string)=>name.replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
 const cache=new Map<number,Surah>();
 export default function QuranReader(){
  const [chapters,setChapters]=useState<Chapter[]>([]);
@@ -12,6 +16,10 @@ export default function QuranReader(){
  const [error,setError]=useState('');
  const [fontSize,setFontSize]=useState(28);
  const [playing,setPlaying]=useState(false);
+ const [reciters,setReciters]=useState<Reciter[]>([]);
+ const [reciterId,setReciterId]=useState<number|null>(null);
+ const [reciterError,setReciterError]=useState('');
+ const [audioError,setAudioError]=useState('');
  const [activeAyah,setActiveAyah]=useState<number|null>(null);
  const audio=useRef<HTMLAudioElement|null>(null);
  useEffect(()=>{
@@ -19,6 +27,27 @@ export default function QuranReader(){
   fetch(API+'/surah',{signal:controller.signal}).then(r=>{if(!r.ok)throw Error('فشل تحميل فهرس السور');return r.json()}).then(j=>{if(!Array.isArray(j.data)||j.data.length!==114)throw Error('فهرس السور غير مكتمل');setChapters(j.data)}).catch(e=>{if(e.name!=='AbortError')setError('تعذر تحميل فهرس السور. تحقق من اتصال الإنترنت.')});
   return()=>controller.abort();
  },[]);
+ useEffect(()=>{
+  const controller=new AbortController();
+  fetch('https://www.mp3quran.net/api/v3/reciters?language=ar',{signal:controller.signal})
+   .then(r=>{if(!r.ok)throw Error('reciters');return r.json()})
+   .then(j=>{
+    const all=(j.reciters||[]) as Reciter[];
+    const selected=requestedReciters.flatMap(name=>all.filter(r=>normalize(r.name)===normalize(name)&&Array.isArray(r.moshaf)&&r.moshaf.length));
+    setReciters(selected);
+    const preferred=selected.find(r=>normalize(r.name)===normalize('محمد صديق المنشاوي'))||selected[0];
+    setReciterId(preferred?.id??null);
+    if(!preferred)setReciterError('تعذر العثور على تسجيلات القراء المختارين.');
+   }).catch(e=>{if(e.name!=='AbortError')setReciterError('تعذر تحميل قائمة القراء. حاول إعادة فتح قسم القراءة.')});
+  return()=>controller.abort();
+ },[]);
+ const selectedReciter=reciters.find(r=>r.id===reciterId);
+ const availableMushaf=selectedReciter?.moshaf.find(m=>m.surah_list.split(',').includes(String(chapter))&&/^https:\/\//.test(m.server));
+ const audioUrl=availableMushaf?availableMushaf.server.replace(/\/?$/,'/')+String(chapter).padStart(3,'0')+'.mp3':null;
+ useEffect(()=>{
+  setPlaying(false);setAudioError('');
+  if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
+ },[chapter,reciterId]);
  useEffect(()=>{
   const controller=new AbortController();setLoading(true);setError('');setData(null);setPlaying(false);setActiveAyah(null);
   if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
@@ -31,27 +60,24 @@ export default function QuranReader(){
   }).catch(e=>{if(e.name!=='AbortError'){setError('تعذر تحميل نص السورة. حاول مجددًا.');setLoading(false)}});
   return()=>controller.abort();
  },[chapter]);
- function playAyah(index:number){
-  if(!data||!audio.current)return;
-  const verse=data.ayahs[index];if(!verse)return;
-  const player=audio.current;
-  player.src='https://cdn.islamic.network/quran/audio/64/ar.alafasy/'+verse.number+'.mp3';
-  setActiveAyah(index);player.play().then(()=>setPlaying(true)).catch(()=>{setPlaying(false);setError('تعذر تشغيل التلاوة. تحقق من الاتصال.')});
- }
  function toggleAudio(){
-  if(!audio.current||!data)return;
-  if(playing){audio.current.pause();setPlaying(false)}
-  else if(activeAyah!==null){audio.current.play().then(()=>setPlaying(true)).catch(()=>setError('تعذر تشغيل الصوت'))}
-  else playAyah(0);
+  const player=audio.current;
+  if(!player||!audioUrl)return;
+  if(!player.src||player.src!==audioUrl){player.src=audioUrl;player.load()}
+  if(!player.paused){player.pause();setPlaying(false)}
+  else player.play().then(()=>{setPlaying(true);setAudioError('')}).catch(()=>{setPlaying(false);setAudioError('تعذر تشغيل هذه التلاوة. جرّب قارئًا آخر.')});
  }
+
  return <div className="quran-reader">
   <h1>📖 القرآن الكريم</h1>
-  <p className="muted">المصحف بالرسم العثماني · التلاوة بصوت الشيخ مشاري العفاسي</p>
+  <p className="muted">المصحف بالرسم العثماني · اختر القارئ واستمع للسورة كاملة</p>
   <div className="reader-tools"><label>السورة <select value={chapter} onChange={e=>setChapter(Number(e.target.value))} aria-label="اختر السورة">{chapters.length?chapters.map(s=><option value={s.number} key={s.number}>{s.number} — {s.name}</option>):<option value={1}>١ — الفاتحة</option>}</select></label><div className="font-tools"><button onClick={()=>setFontSize(n=>Math.max(20,n-2))} aria-label="تصغير الخط">أ−</button><button onClick={()=>setFontSize(n=>Math.min(44,n+2))} aria-label="تكبير الخط">أ+</button></div></div>
-  <div className="audio-controls"><button className="primary" onClick={toggleAudio} disabled={!data}>{playing?'⏸ إيقاف مؤقت':'▶ استمع للتلاوة'}</button><span>اضغط على أي آية لسماعها، ثم تتابع التلاوة تلقائيًا.</span></div>
-  <audio ref={audio} preload="none" onEnded={()=>{if(data&&activeAyah!==null&&activeAyah+1<data.ayahs.length)playAyah(activeAyah+1);else{setPlaying(false);setActiveAyah(null)}}} onError={()=>{setPlaying(false)}}/>
+  <div className="reciter-tools"><label>القارئ <select aria-label="اختر القارئ" value={reciterId??''} onChange={e=>setReciterId(Number(e.target.value))} disabled={!reciters.length}>{reciters.length?reciters.map(r=><option value={r.id} key={r.id}>{r.name}</option>):<option value="">جارٍ تحميل القراء</option>}</select></label><p className="reader-note">محمد عبادة: {reciters.some(r=>normalize(r.name)===normalize('محمد عبادة'))?'متاح ضمن القائمة':'لم تتأكد إتاحة تسجيلاته من المصدر الحالي بعد'}</p></div>
+  <div className="audio-controls"><button className="primary" onClick={toggleAudio} disabled={!audioUrl}>{playing?'⏸ إيقاف مؤقت':'▶ استمع للسورة'}</button><span>{audioUrl?'تشغيل السورة كاملة من تسجيل القارئ المختار':'هذه السورة غير متاحة للقارئ المختار'}</span></div>
+  <audio ref={audio} controls preload="none" className="quran-audio" onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onError={()=>{if(audio.current?.src)setAudioError('تعذر تحميل الملف الصوتي لهذا القارئ')}}/>
+  {(reciterError||audioError)&&<p className="reader-error" role="alert">{reciterError||audioError}</p>}
   {error&&<div className="reader-error" role="alert">{error} <button onClick={()=>setChapter(n=>n===114?113:n+1)}>جرّب سورة أخرى</button></div>}
-  {loading?<p className="reader-loading" role="status">جارٍ تحميل السورة…</p>:data&&<article className="mushaf" aria-label={'سورة '+data.name}><div className="surah-title">{data.name}</div>{chapter!==1&&chapter!==9&&<p className="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>}<div className="verses" style={{fontSize}}>{data.ayahs.map((a,i)=><React.Fragment key={a.number}><span className={activeAyah===i?'ayah active-ayah':'ayah'}>{a.text} <button className="verse-number" onClick={()=>playAyah(i)} title={'استمع إلى الآية '+a.numberInSurah} aria-label={'تشغيل الآية '+a.numberInSurah}>﴿{a.numberInSurah}﴾</button></span>{' '}</React.Fragment>)}</div></article>}
-  <p className="reader-note">مصدر النص: <a href="https://alquran.cloud/api" target="_blank" rel="noopener noreferrer">Al Quran Cloud (quran-uthmani)</a> · مصدر الصوت: <a href="https://alquran.cloud/cdn" target="_blank" rel="noopener noreferrer">Islamic Network CDN</a>. هذه نسخة تطويرية تحتاج مراجعة نهائية للنص والحقوق قبل الإطلاق الرسمي.</p>
+  {loading?<p className="reader-loading" role="status">جارٍ تحميل السورة…</p>:data&&<article className="mushaf" aria-label={'سورة '+data.name}><div className="surah-title">{data.name}</div>{chapter!==1&&chapter!==9&&<p className="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>}<div className="verses" style={{fontSize}}>{data.ayahs.map((a,i)=><React.Fragment key={a.number}><span className="ayah">{a.text} <span className="verse-number">﴿{a.numberInSurah}﴾</span></span>{' '}</React.Fragment>)}</div></article>}
+  <p className="reader-note">مصدر النص: <a href="https://alquran.cloud/api" target="_blank" rel="noopener noreferrer">Al Quran Cloud (quran-uthmani)</a> · مصدر الصوت: <a href="https://www.mp3quran.net/ar/api" target="_blank" rel="noopener noreferrer">MP3Quran</a>. هذه نسخة تطويرية تحتاج مراجعة نهائية للنص والحقوق قبل الإطلاق الرسمي.</p>
  </div>;
 }
