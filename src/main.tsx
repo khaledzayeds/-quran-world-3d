@@ -15,11 +15,39 @@ function useKeys() {
   }, []);
 }
 function Tree({x,z,s=1}:{x:number,z:number,s?:number}) {
+  const tone = (Math.round(Math.abs(x*3+z))%3);
   return <group position={[x,0,z]} scale={s}>
-    <mesh position={[0,1,0]} castShadow><cylinderGeometry args={[.15,.24,2,8]}/><meshStandardMaterial color="#765039"/></mesh>
-    <mesh position={[0,2.4,0]} castShadow><coneGeometry args={[1.1,2.7,9]}/><meshStandardMaterial color="#2f7450"/></mesh>
-    <mesh position={[0,3.5,0]} castShadow><coneGeometry args={[.85,2,9]}/><meshStandardMaterial color="#3d9366"/></mesh>
+    <mesh position={[0,1.15,0]} castShadow><cylinderGeometry args={[.17,.27,2.3,7]}/><meshStandardMaterial color="#78543a" roughness={1}/></mesh>
+    {[[-.55,2.5,.25],[.52,2.65,-.2],[0,3.12,0]].map(([a,b,c],i)=>
+      <mesh key={i} position={[a,b,c]} castShadow><icosahedronGeometry args={[i===2?1.35:1.08,1]}/><meshStandardMaterial color={['#4b9565','#68a86a','#397f62'][((tone+i)%3)]} flatShading roughness={1}/></mesh>)}
   </group>;
+}
+function Bush({x,z,s=1}:{x:number,z:number,s?:number}) {
+  return <group position={[x,0,z]} scale={s}>
+    <mesh position={[0,.35,0]} castShadow><icosahedronGeometry args={[.65,1]}/><meshStandardMaterial color="#4d9b65" flatShading/></mesh>
+    <mesh position={[.45,.3,.2]} castShadow><icosahedronGeometry args={[.48,1]}/><meshStandardMaterial color="#70b574" flatShading/></mesh>
+    <mesh position={[-.35,.26,-.2]} castShadow><icosahedronGeometry args={[.5,1]}/><meshStandardMaterial color="#398c66" flatShading/></mesh>
+  </group>;
+}
+function ValleyLandscape() {
+  return <>
+    <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[180,180]}/><meshStandardMaterial color="#79ad78" roughness={1}/></mesh>
+    {[-1,1].map(side=><group key={side}>
+      <mesh position={[side*34,-6,-15]} scale={[23,13,44]} castShadow receiveShadow><icosahedronGeometry args={[1,1]}/><meshStandardMaterial color="#66936e" flatShading roughness={1}/></mesh>
+      <mesh position={[side*55,-2,-48]} scale={[29,25,32]} castShadow><icosahedronGeometry args={[1,1]}/><meshStandardMaterial color="#789c8d" flatShading roughness={1}/></mesh>
+      <mesh position={[side*18,-1,-51]} scale={[14,12,15]} castShadow><icosahedronGeometry args={[1,1]}/><meshStandardMaterial color="#8ca993" flatShading roughness={1}/></mesh>
+    </group>)}
+    <mesh position={[0,.035,-3]} rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[5.5,39]}/><meshStandardMaterial color="#dcc9a0" roughness={1}/></mesh>
+    {Array.from({length:18},(_,i)=><mesh key={i} position={[((i%3)-1)*1.3,.055,12-i*1.9]} rotation={[-Math.PI/2,0,(i%4)*.21]}><circleGeometry args={[.27+(i%4)*.08,6]}/><meshStandardMaterial color={i%2?'#b8a886':'#ead8b3'}/></mesh>)}
+    <mesh position={[13,.04,-4]} rotation={[-Math.PI/2,0,.1]}><planeGeometry args={[5,46]}/><meshStandardMaterial color="#4babb0" roughness={.25} metalness={.08}/></mesh>
+    <mesh position={[13,.05,-4]} rotation={[-Math.PI/2,0,.1]}><planeGeometry args={[.4,46]}/><meshBasicMaterial color="#b9f5dc" transparent opacity={.65}/></mesh>
+    <mesh position={[13,.23,3]} castShadow><boxGeometry args={[8,.38,3.6]}/><meshStandardMaterial color="#bba47d" roughness={1}/></mesh>
+    {[-1,1].map(side=><group key={side}>
+      <mesh position={[13,1,3+side*1.7]} castShadow><boxGeometry args={[8,.25,.2]}/><meshStandardMaterial color="#8b765c"/></mesh>
+      {[-3,0,3].map(x=><mesh key={x} position={[13+x,.65,3+side*1.7]} castShadow><boxGeometry args={[.2,.9,.2]}/><meshStandardMaterial color="#8b765c"/></mesh>)}
+    </group>)}
+    {Array.from({length:28},(_,i)=>{const side=i%2?1:-1;return <Bush key={i} x={side*(4.4+i*7%17)} z={-24+i*11%48} s={.55+(i%4)*.16}/>})}
+  </>;
 }
 function Portal({onEnter}:{onEnter:()=>void}) {
   const light=useRef<THREE.Mesh>(null);
@@ -52,7 +80,7 @@ function Player({onNear}:{onNear:(v:boolean)=>void}) {
     const stride=(dx||dz)?Math.sin(walk.current)*.45:0;
     if(leftLeg.current)leftLeg.current.rotation.x=THREE.MathUtils.damp(leftLeg.current.rotation.x,stride,9,dt);
     if(rightLeg.current)rightLeg.current.rotation.x=THREE.MathUtils.damp(rightLeg.current.rotation.x,-stride,9,dt);
-    const target=new THREE.Vector3(p.position.x+7,p.position.y+7,p.position.z+12);
+    const target=new THREE.Vector3(p.position.x+4.3,p.position.y+5.8,p.position.z+10.5);
     camera.position.lerp(target,1-Math.exp(-3.8*dt));
     const look=new THREE.Vector3(p.position.x,p.position.y+1.45,p.position.z-2);
     camera.lookAt(look);
@@ -90,10 +118,8 @@ function World({onNear,onEnter,onChoose}:{onNear:(v:boolean)=>void,onEnter:()=>v
     <color attach="background" args={['#b7d9dd']}/><fog attach="fog" args={['#b7d9dd',22,85]}/>
     <ambientLight intensity={1.2}/><directionalLight position={[12,25,9]} intensity={2.4} castShadow shadow-mapSize={[1024,1024]}/>
     <Sky sunPosition={[5,7,-12]} turbidity={7}/>
-    <mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[180,180]}/><meshStandardMaterial color="#73a47d"/></mesh>
-    <mesh position={[0,.025,-3]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[4.5,35]}/><meshStandardMaterial color="#c9b795"/></mesh>
-    <mesh position={[0,-.18,-32]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[20,64]}/><meshStandardMaterial color="#81b9a2"/></mesh>
-    <Sparkles count={110} scale={[48,9,52]} position={[0,4,-4]} size={1.8} speed={.2} color="#f9eac3"/>
+    <ValleyLandscape/>
+    <Sparkles count={45} scale={[42,8,50]} position={[0,4,-4]} size={1.5} speed={.15} color="#f9eac3"/>
     <Shrine x={-8} z={-10}/><Shrine x={9} z={-17}/>
     {Array.from({length:24},(_,i)=>{const side=i%2?1:-1;return <Rock key={i} x={side*(5+i*11%17)} z={-23+i*17%47} s={.35+(i%5)*.14}/>})}
     {Array.from({length:22},(_,i)=>{const x=(i%2?1:-1)*(6+(i*7%17));const z=-21+(i*13%43);return <Tree key={i} x={x} z={z} s={.7+(i%4)*.16}/>})}
@@ -120,8 +146,8 @@ function App(){
     if(today!==day){setDay(today);setCompleted(1);}else setCompleted(v=>Math.min(goal,v+1));
   };
   const mobile=(key:string,active:boolean)=>{if(active)held.add(key);else held.delete(key)};
-  return <main><Canvas shadows camera={{position:[7,8,21],fov:55}}><World onNear={setNear} onEnter={()=>setOpen(true)} onChoose={setJourney}/></Canvas>
-    <header><h1>عالم القرآن 3D</h1><p>وادي النور • الإصدار التجريبي 0.3</p></header>
+  return <main><Canvas shadows dpr={[1,1.5]} gl={{antialias:true,powerPreference:"high-performance"}} camera={{position:[5,7,21],fov:55}}><World onNear={setNear} onEnter={()=>setOpen(true)} onChoose={setJourney}/></Canvas>
+    <header><h1>عالم القرآن 3D</h1><p>وادي النور • مغامرة 3D v0.4</p></header>
     <aside>تحرّك بالأسهم أو WASD • اقترب من البوابة • اضغط على البلورات لاختيار رحلتك</aside>
     <button className="journey-open" onClick={()=>setJourney('read')}>📖 رحلتي القرآنية</button>
     {journey&&<section className="dialog journey-panel" dir="rtl" role="dialog" aria-modal="true" aria-label="رحلتي القرآنية">
