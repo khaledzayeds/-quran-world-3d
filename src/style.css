@@ -11,3 +11,11 @@
 .journey-panel small{display:block;margin-top:15px;color:#63766b}
 .journey-panel button:disabled{opacity:.5;cursor:not-allowed}
 @media(pointer:coarse){.journey-open{top:100px;right:12px}.journey-panel{width:calc(100% - 28px);padding:22px}}
+
+/* Adventure world controls */
+.pad{touch-action:none;user-select:none;-webkit-user-select:none;z-index:3}
+.pad button{touch-action:none;min-height:55px;min-width:55px;background:#123f3bdc;backdrop-filter:blur(7px);border:1px solid #d1e9d5;box-shadow:0 3px 14px #0b312b55;font-size:1.35rem}
+.pad button:active{background:#4d9f80;transform:scale(.96)}
+header{pointer-events:none;z-index:2}
+@media(max-width:600px){header{top:12px;right:12px}header h1{font-size:1.25rem}header p{font-size:.78rem}.enter{bottom:205px;width:max-content;max-width:90%;z-index:3}aside{font-size:.74rem;max-width:165px;bottom:20px;right:10px}.pad{bottom:15px;left:10px}}
+@media(prefers-reduced-motion:reduce){.progress-track>div{transition:none}.pad button:active{transform:none}}
