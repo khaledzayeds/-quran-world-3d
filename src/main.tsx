@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Html, OrbitControls, Sparkles, Stars, Text } from '@react-three/drei';
+import { Float, Html, Sparkles, Stars, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import './style.css';
 
