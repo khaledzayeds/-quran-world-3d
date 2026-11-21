@@ -1,7 +1,7 @@
 import React,{Suspense,useEffect,useMemo,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Canvas,useFrame} from '@react-three/fiber';
-import {OrbitControls,Stars,Text} from '@react-three/drei';
+import {Stars,Text} from '@react-three/drei';
 import * as THREE from 'three';
 import QuranReader from './QuranReader';
 import './style.css';
@@ -31,9 +31,9 @@ function World({chapters,selected,onSelect,view,reduced,progress}:{chapters:Chap
  {c.number%5===0||c.number===1||c.number===114?<Text position={[0,.7,0]} fontSize={.23} color="#fff5da" anchorX="center">{c.number}</Text>:null}
  </group>})}
  </group>
- {(view==='surah'||view==='reader')&&Array.from({length:steps},(_,i)=>{const a=(i/steps)*Math.PI*1.7-Math.PI*.85;const x=Math.sin(a)*6.5,z=Math.cos(a)*6.5;const done=(progress['read-'+selected]||0)>i;return <mesh key={i} position={[x,.34,z]}><cylinderGeometry args={[.3,.38,.55,12]}/><meshStandardMaterial color={done?'#e7c57d':'#4d8d88'} emissive={done?'#ad7f30':'#16484b'} emissiveIntensity={.35}/></mesh>})}
+ {(view==='surah'||view==='reader'||view==='top')&&Array.from({length:steps},(_,i)=>{const a=(i/steps)*Math.PI*1.7-Math.PI*.85;const x=Math.sin(a)*6.5,z=Math.cos(a)*6.5;const done=(progress['read-'+selected]||0)>i;return <mesh key={i} position={[x,.34,z]}><cylinderGeometry args={[.3,.38,.55,12]}/><meshStandardMaterial color={done?'#e7c57d':'#4d8d88'} emissive={done?'#ad7f30':'#16484b'} emissiveIntensity={.35}/></mesh>})}
  <CameraMotion view={view} reduced={reduced}/>
- <OrbitControls enablePan={false} enableZoom={view==='world'} minDistance={13} maxDistance={38} minPolarAngle={.2} maxPolarAngle={Math.PI/2.25} enableDamping dampingFactor={.08}/>
+
  </>;
 }
 function App(){
