@@ -1,97 +1,61 @@
-import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Html, Sparkles, Stars, Text } from '@react-three/drei';
+import React,{Suspense,useEffect,useMemo,useRef,useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {Canvas,useFrame} from '@react-three/fiber';
+import {OrbitControls,Stars,Text} from '@react-three/drei';
 import * as THREE from 'three';
-import './style.css';
 import QuranReader from './QuranReader';
-
-type Section = 'home' | 'read' | 'khatma' | 'memorize' | 'review' | 'achievements';
-const sections: {id:Exclude<Section,'home'>;label:string;subtitle:string;symbol:string;color:string;position:[number,number,number]}[] = [
-  {id:'read',label:'قراءة القرآن',subtitle:'افتح المصحف',symbol:'✦',color:'#74e6cb',position:[-3.8,1.5,0]},
-  {id:'khatma',label:'الختمة',subtitle:'خطتك اليومية',symbol:'◈',color:'#efcb7b',position:[3.7,1.7,-.4]},
-  {id:'memorize',label:'الحفظ',subtitle:'رحلة الحفظ',symbol:'✧',color:'#b3a3ff',position:[-4,-1.7,-1]},
-  {id:'review',label:'المراجعة',subtitle:'ثبّت ما حفظت',symbol:'↻',color:'#8bbfff',position:[3.9,-1.6,-1]},
-  {id:'achievements',label:'الإنجازات',subtitle:'تابع تقدمك',symbol:'★',color:'#f2adab',position:[0,-3,-2]}
-];
-
-function Orb({item,onChoose,active}:{item:typeof sections[number];onChoose:(s:Section)=>void;active:boolean}) {
-  const ref=useRef<THREE.Group>(null);
-  useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=clock.elapsedTime*.18});
-  return <group position={item.position}>
-    <Float speed={1.2} rotationIntensity={.08} floatIntensity={.22}>
-      <group ref={ref}>
-        <mesh><icosahedronGeometry args={[.91,2]}/><meshPhysicalMaterial color={item.color} metalness={.18} roughness={.18} transmission={.2} transparent opacity={.82} emissive={item.color} emissiveIntensity={active?.5:.24}/></mesh>
-        <mesh scale={1.12}><sphereGeometry args={[.91,24,16]}/><meshBasicMaterial color={item.color} wireframe transparent opacity={.12}/></mesh>
-      </group>
-      <Text position={[0,.12,.94]} fontSize={.62} color="#ffffff" anchorX="center" outlineWidth={.008} outlineColor="#12463f">{item.symbol}</Text>
-      <Html position={[0,-1.16,0]} center distanceFactor={9} zIndexRange={[20,0]}>
-        <button className="orb-label" onClick={()=>onChoose(item.id)} aria-label={'افتح '+item.label}><strong>{item.label}</strong><small>{item.subtitle}</small></button>
-      </Html>
-      <mesh onClick={()=>onChoose(item.id)}><sphereGeometry args={[1.04,20,16]}/><meshBasicMaterial transparent opacity={0} depthWrite={false}/></mesh>
-    </Float>
-  </group>;
+import './style.css';
+type Chapter={number:number;name:string;numberOfAyahs:number};
+type View='world'|'surah'|'reader'|'top';
+type Mode='read'|'memorize';
+const API='https://api.alquran.cloud/v1';
+function loadProgress():Record<string,number>{try{return JSON.parse(localStorage.getItem('qw-surah-progress-v1')||'{}')}catch{return {}}}
+function CameraMotion({view,reduced}:{view:View;reduced:boolean}){
+ useFrame(({camera},dt)=>{const p=view==='top'?new THREE.Vector3(0,25,.01):view==='surah'?new THREE.Vector3(0,10,15):new THREE.Vector3(0,15,24);camera.position.lerp(p,reduced?1:1-Math.exp(-1.8*dt));camera.lookAt(0,0,0)});
+ return null;
 }
-function Centerpiece({reduced}:{reduced:boolean}){
-  const ring=useRef<THREE.Mesh>(null);
-  useFrame((_,dt)=>{if(ring.current&&!reduced)ring.current.rotation.z+=dt*.12});
-  return <group>
-    <Float speed={.85} floatIntensity={.18} rotationIntensity={.03}>
-      <mesh><sphereGeometry args={[1.65,40,32]}/><meshPhysicalMaterial color="#0f736d" metalness={.32} roughness={.19} emissive="#166d63" emissiveIntensity={.55} clearcoat={1}/></mesh>
-      <mesh ref={ring} rotation={[.4,0,.2]}><torusGeometry args={[2.12,.035,8,100]}/><meshBasicMaterial color="#e6c884"/></mesh>
-      <mesh rotation={[1.12,.25,0]}><torusGeometry args={[1.98,.025,8,100]}/><meshBasicMaterial color="#68cdb4"/></mesh>
-      <Text position={[0,.23,1.62]} fontSize={.4} color="#fff7dd" anchorX="center" maxWidth={2.8}>عالم القرآن</Text>
-      <Text position={[0,-.27,1.63]} fontSize={.18} color="#d6eecf" anchorX="center">QURAN WORLD</Text>
-    </Float>
-    <pointLight color="#5ed4b9" intensity={12} distance={12}/>
-  </group>;
-}
-function CameraRig({section,reduced}:{section:Section;reduced:boolean}){
-  useFrame(({camera},dt)=>{
-    const target=section==='home'?new THREE.Vector3(0,0,13):new THREE.Vector3(0,0,9.3);
-    camera.position.lerp(target,reduced?1:1-Math.exp(-2.4*dt));
-    camera.lookAt(0,0,0);
-  });
-  return null;
-}
-function Scene({section,onChoose,reduced,mobile}:{section:Section;onChoose:(s:Section)=>void;reduced:boolean;mobile:boolean}){
-  return <>
-    <color attach="background" args={['#061c26']}/>
-    <fog attach="fog" args={['#061c26',15,32]}/>
-    <ambientLight intensity={1.3}/>
-    <directionalLight position={[5,8,7]} intensity={2.2} color="#fff2d4"/>
-    <Stars radius={65} depth={45} count={reduced?400:1100} factor={3} saturation={.4} fade speed={reduced?0:.3}/>
-    {!reduced&&<Sparkles count={55} scale={[17,11,8]} size={1.7} speed={.2} color="#b8e6d4"/>}
-    <Centerpiece reduced={reduced}/>
-    {!mobile&&sections.map(item=><Orb key={item.id} item={item} onChoose={onChoose} active={section===item.id}/>)}
-    <CameraRig section={section} reduced={reduced}/>
-  </>;
-}
-function getStoredNumber(key:string,fallback:number){
-  try{const n=Number(localStorage.getItem(key));return Number.isFinite(n)&&n>0?n:fallback}catch{return fallback}
+function World({chapters,selected,onSelect,view,reduced,progress}:{chapters:Chapter[];selected:number;onSelect:(n:number)=>void;view:View;reduced:boolean;progress:Record<string,number>}){
+ const rotation=useRef<THREE.Group>(null);
+ const chapter=chapters.find(c=>c.number===selected);
+ const steps=Math.min(chapter?.numberOfAyahs||7,60);
+ useFrame((_,dt)=>{if(rotation.current&&view==='world'&&!reduced)rotation.current.rotation.y+=dt*.018});
+ return <><color attach="background" args={['#061b26']}/><ambientLight intensity={1.4}/><directionalLight position={[8,15,8]} intensity={2.5} color="#ffe8b1"/><pointLight position={[0,5,0]} intensity={25} color="#57d4bb"/><Stars radius={70} depth={40} count={reduced?300:900} factor={3} fade speed={reduced?0:.3}/>
+ <mesh position={[0,-.65,0]}><cylinderGeometry args={[10.8,11.2,1.1,114]}/><meshStandardMaterial color="#123c43" metalness={.55} roughness={.3}/></mesh>
+ <mesh position={[0,-.05,0]}><cylinderGeometry args={[10.7,10.7,.14,114]}/><meshStandardMaterial color="#1d5b59" metalness={.55} roughness={.3}/></mesh>
+ <mesh position={[0,.06,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[10.35,.08,8,114]}/><meshStandardMaterial color="#d8b873" emissive="#ad8740" emissiveIntensity={.3}/></mesh>
+ <mesh position={[0,.08,0]}><cylinderGeometry args={[2.7,2.7,.23,64]}/><meshStandardMaterial color="#0b393c" metalness={.65} roughness={.22}/></mesh>
+ <Text position={[0,.23,0]} rotation={[-Math.PI/2,0,0]} fontSize={.5} color="#e9d29a" anchorX="center">عالم القرآن</Text>
+ <group ref={rotation} visible={view==='world'||view==='top'}>
+ {chapters.map(c=>{const a=(c.number-1)/114*Math.PI*2;const x=Math.sin(a)*8.8,z=Math.cos(a)*8.8;const done=Math.min(c.numberOfAyahs,progress['read-'+c.number]||0);return <group key={c.number} position={[x,.28,z]}>
+ <mesh onClick={()=>onSelect(c.number)} onPointerOver={()=>{document.body.style.cursor='pointer'}} onPointerOut={()=>{document.body.style.cursor='auto'}}><cylinderGeometry args={[.35,.44,.56,12]}/><meshStandardMaterial color={done===c.numberOfAyahs?'#e7c57d':selected===c.number?'#83e8d1':'#3e8b88'} emissive={selected===c.number?'#2da18c':'#102b30'} emissiveIntensity={.6}/></mesh>
+ {c.number%5===0||c.number===1||c.number===114?<Text position={[0,.7,0]} fontSize={.23} color="#fff5da" anchorX="center">{c.number}</Text>:null}
+ </group>})}
+ </group>
+ {(view==='surah'||view==='reader')&&Array.from({length:steps},(_,i)=>{const a=(i/steps)*Math.PI*1.7-Math.PI*.85;const x=Math.sin(a)*6.5,z=Math.cos(a)*6.5;const done=(progress['read-'+selected]||0)>i;return <mesh key={i} position={[x,.34,z]}><cylinderGeometry args={[.3,.38,.55,12]}/><meshStandardMaterial color={done?'#e7c57d':'#4d8d88'} emissive={done?'#ad7f30':'#16484b'} emissiveIntensity={.35}/></mesh>})}
+ <CameraMotion view={view} reduced={reduced}/>
+ <OrbitControls enablePan={false} enableZoom={view==='world'} minDistance={13} maxDistance={38} minPolarAngle={.2} maxPolarAngle={Math.PI/2.25} enableDamping dampingFactor={.08}/>
+ </>;
 }
 function App(){
-  const [section,setSection]=useState<Section>('home');
-  const [goal,setGoal]=useState(()=>getStoredNumber('qw-goal',2));
-  const [completed,setCompleted]=useState(0);
-  const [day,setDay]=useState(()=>new Date().toLocaleDateString('en-CA'));
-  const [mobile,setMobile]=useState(()=>typeof window!=='undefined'&&window.innerWidth<850);
-  useEffect(()=>{const update=()=>setMobile(window.innerWidth<850);window.addEventListener('resize',update);return()=>window.removeEventListener('resize',update)},[]);
-  const [reduced,setReduced]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-  useEffect(()=>{try{const v=JSON.parse(localStorage.getItem('quran-world-progress')||'{}');if(v.day===day)setCompleted(Math.max(0,Number(v.completed)||0))}catch{}},[day]);
-  useEffect(()=>{try{localStorage.setItem('quran-world-progress',JSON.stringify({day,goal,completed}));localStorage.setItem('qw-goal',String(goal))}catch{}},[day,goal,completed]);
-  const completePage=()=>{const today=new Date().toLocaleDateString('en-CA');if(today!==day){setDay(today);setCompleted(1)}else setCompleted(n=>Math.min(goal,n+1))};
-  return <main dir="rtl">
-    <div className="world-canvas" aria-hidden="true"><Canvas dpr={[1,1.5]} gl={{antialias:true,powerPreference:'high-performance'}} camera={{position:[0,0,13],fov:50}}><Suspense fallback={null}><Scene section={section} onChoose={setSection} reduced={reduced} mobile={mobile}/></Suspense></Canvas></div>
-    <header className="topbar"><div className="brand"><span className="brand-mark">۞</span><div><strong>عالم القرآن</strong><small>رحلتك مع القرآن تبدأ هنا</small></div></div><span className="version">تجربة تفاعلية · v0.6</span></header>
-    {section==='home'?<section className="welcome"><span className="eyebrow">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</span><h1>رحلتك في عالم القرآن</h1><p>اختر عالمك من الدوائر المضيئة، وابدأ القراءة أو خطط لختمتك.</p></section>:<section className="content-panel" aria-label="محتوى القسم">
-      <div className="panel-head"><button className="back" onClick={()=>setSection('home')}>→ العودة للعالم</button><span className="panel-kicker">عالم القرآن</span></div>
-      {section==='read'?<QuranReader/>:section==='khatma'?<><h1>◈ خطة الختمة</h1><p className="muted">حدد هدفك اليومي وسجّل ما قرأته. التقدم محفوظ على هذا الجهاز مؤقتًا.</p><label className="goal-label">الهدف اليومي <select value={goal} onChange={e=>{setGoal(Number(e.target.value));setCompleted(n=>Math.min(n,Number(e.target.value)))}}>{[1,2,3,4,5,6,8,10,15,20].map(n=><option key={n} value={n}>{n} صفحة</option>)}</select></label><div className="progress-track"><div style={{width:(completed/goal*100)+'%'}}/></div><p>أنجزت {completed} من {goal} صفحات اليوم</p><button className="primary" onClick={completePage} disabled={completed>=goal&&day===new Date().toLocaleDateString('en-CA')}>✓ أنجزت صفحة</button></>:<><h1>{sections.find(s=>s.id===section)?.label}</h1><p className="muted">هذا القسم قيد التطوير. سنربطه بحسابك وخطة رحلتك القرآنية في المراحل القادمة.</p><button className="primary" onClick={()=>setSection('read')}>ابدأ بقراءة القرآن</button></>}
-    </section>}
-    {section==='home'&&<nav className="mobile-orbits" aria-label="اختر قسمًا">{sections.map(item=><button key={item.id} onClick={()=>setSection(item.id)}><span className="mobile-orb-symbol" style={{borderColor:item.color,color:item.color}}>{item.symbol}</span><strong>{item.label}</strong></button>)}</nav>}
-    <nav className="quick-nav" aria-label="أقسام الموقع">{sections.map(item=><button key={item.id} className={section===item.id?'selected':''} onClick={()=>setSection(item.id)}>{item.label}</button>)}</nav>
-    <button className="motion-toggle" onClick={()=>setReduced(v=>!v)} aria-label={reduced?'تشغيل الحركة':'تقليل الحركة'}>{reduced?'تشغيل الحركة':'تقليل الحركة'}</button>
-    <footer>عالم القرآن · نسخة تجريبية — الحسابات والمزامنة غير متاحين بعد</footer>
-  </main>;
+ const [chapters,setChapters]=useState<Chapter[]>([]);
+ const [selected,setSelected]=useState(1);
+ const [view,setView]=useState<View>('world');
+ const [mode,setMode]=useState<Mode>('read');
+ const [progress,setProgress]=useState(loadProgress);
+ const [error,setError]=useState('');
+ const [reduced,setReduced]=useState(()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+ useEffect(()=>{const controller=new AbortController();fetch(API+'/surah',{signal:controller.signal}).then(r=>{if(!r.ok)throw Error('fetch');return r.json()}).then(j=>{if(!Array.isArray(j.data)||j.data.length!==114)throw Error('invalid');setChapters(j.data)}).catch(e=>{if(e.name!=='AbortError')setError('تعذر تحميل فهرس السور. يرجى تحديث الصفحة.')});return()=>controller.abort()},[]);
+ useEffect(()=>{try{localStorage.setItem('qw-surah-progress-v1',JSON.stringify(progress))}catch{}},[progress]);
+ const chapter=chapters.find(c=>c.number===selected);
+ const completed=progress[mode+'-'+selected]||0;
+ const percent=chapter?Math.round(completed/chapter.numberOfAyahs*100):0;
+ const choose=(n:number)=>{setSelected(n);setView('surah')};
+ const advance=()=>{if(!chapter)return;setProgress(p=>({...p,[mode+'-'+selected]:Math.min(chapter.numberOfAyahs,(p[mode+'-'+selected]||0)+1)}))};
+ return <main dir="rtl" className="qworld">
+ <div className="world-canvas"><Canvas dpr={[1,1.5]} camera={{position:[0,15,24],fov:48}} gl={{powerPreference:'high-performance'}}><Suspense fallback={null}><World chapters={chapters} selected={selected} onSelect={choose} view={view} reduced={reduced} progress={progress}/></Suspense></Canvas></div>
+ <header className="topbar"><div className="brand"><span className="brand-mark">۞</span><div><strong>عالم القرآن</strong><small>رحلة داخل السور والآيات</small></div></div><span className="version">3D · v0.7</span></header>
+ {view==='world'?<section className="journey-home"><h1>اختر سورة وابدأ رحلتك</h1><p>114 محطة على منصة واحدة — اسحب لتدور حول العالم</p><label>انتقل إلى سورة <select value={selected} onChange={e=>setSelected(Number(e.target.value))}>{chapters.map(c=><option key={c.number} value={c.number}>{c.number} — {c.name}</option>)}</select></label><button className="primary" onClick={()=>choose(selected)} disabled={!chapters.length}>ادخل السورة</button>{error&&<p role="alert">{error}</p>}</section>:<section className="journey-panel"><div className="panel-head"><button className="back" onClick={()=>setView('world')}>→ كل السور</button><button className="back" onClick={()=>setView(view==='top'?'surah':'top')}>{view==='top'?'منظور مائل':'◎ Top View'}</button></div><h2>{chapter?.name||'السورة'}</h2><div className="journey-modes"><button className={mode==='read'?'active':''} onClick={()=>setMode('read')}>قراءة</button><button className={mode==='memorize'?'active':''} onClick={()=>setMode('memorize')}>حفظ</button></div><div className="journey-stat"><strong>{percent}٪</strong><span>أنجزت {completed} من {chapter?.numberOfAyahs||0} آية في {mode==='read'?'القراءة':'الحفظ'}</span></div><div className="progress-track"><div style={{width:percent+'%'}}/></div><div className="journey-actions"><button className="primary" onClick={()=>setView('reader')}>افتح المصحف والتلاوة</button><button className="primary secondary" onClick={advance} disabled={!chapter||completed>=chapter.numberOfAyahs}>سجّل إنجاز آية</button></div>{view==='reader'&&<div className="embedded-reader"><QuranReader initialChapter={selected}/></div>}</section>}
+ <button className="motion-toggle" onClick={()=>setReduced(v=>!v)}>{reduced?'تشغيل الحركة':'تقليل الحركة'}</button><footer>التقدم محفوظ على هذا الجهاز · تسجيل الإنجاز يدوي حاليًا</footer>
+ </main>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);
