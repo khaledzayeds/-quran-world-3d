@@ -26,6 +26,8 @@ function World({chapters,selected,onSelect,view,reduced,progress}:{chapters:Chap
  <mesh position={[0,-.05,0]}><cylinderGeometry args={[10.7,10.7,.14,114]}/><meshStandardMaterial color="#1d5b59" metalness={.55} roughness={.3}/></mesh>
  <mesh position={[0,.06,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[10.35,.08,8,114]}/><meshStandardMaterial color="#d8b873" emissive="#ad8740" emissiveIntensity={.3}/></mesh>
  <mesh position={[0,.08,0]}><cylinderGeometry args={[2.7,2.7,.23,64]}/><meshStandardMaterial color="#0b393c" metalness={.65} roughness={.22}/></mesh>
+ {Array.from({length:24},(_,i)=>{const a=i/24*Math.PI*2;return <group key={'arch'+i} position={[Math.sin(a)*10.1,0,Math.cos(a)*10.1]} rotation={[0,a,0]}><mesh position={[0,1.4,0]}><cylinderGeometry args={[.12,.16,2.8,8]}/><meshStandardMaterial color="#9c8d69" metalness={.48} roughness={.42}/></mesh><mesh position={[0,2.88,0]}><boxGeometry args={[.7,.16,.32]}/><meshStandardMaterial color="#d1b67b" metalness={.55} roughness={.35}/></mesh></group>})}
+ <mesh position={[0,2.98,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[10.1,.11,8,120]}/><meshStandardMaterial color="#c3a66c" metalness={.7} roughness={.27}/></mesh>
  <mesh position={[0,.2,0]}><cylinderGeometry args={[1.6,1.9,.28,48]}/><meshStandardMaterial color="#c5a665" metalness={.7} roughness={.24}/></mesh>
  <group ref={rotation} visible={view==='world'||view==='top'}>
  {chapters.map(c=>{const a=(c.number-1)/114*Math.PI*2;const x=Math.sin(a)*8.8,z=Math.cos(a)*8.8;const done=Math.min(c.numberOfAyahs,progress['read-'+c.number]||0);return <group key={c.number} position={[x,.28,z]}>
