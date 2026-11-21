@@ -8,13 +8,14 @@ type Reciter={id:number;name:string;moshaf:Mushaf[]};
 const requestedReciters=['محمد عبادة','إسلام صبحي','محمد صديق المنشاوي','أحمد بن علي العجمي'];
 const normalize=(name:string)=>name.replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
 const cache=new Map<number,Surah>();
-export default function QuranReader({initialChapter=1}:{initialChapter?:number}){
+export default function QuranReader({initialChapter=1,onVerseComplete}:{initialChapter?:number;onVerseComplete?:(verse:number)=>void}){
  const [chapters,setChapters]=useState<Chapter[]>([]);
  const [chapter,setChapter]=useState(initialChapter);
  const [data,setData]=useState<Surah|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
  const [fontSize,setFontSize]=useState(28);
+ const [markedVerse,setMarkedVerse]=useState(0);
  const [playing,setPlaying]=useState(false);
  const [reciters,setReciters]=useState<Reciter[]>([]);
  const [reciterId,setReciterId]=useState<number|null>(null);
@@ -48,6 +49,7 @@ export default function QuranReader({initialChapter=1}:{initialChapter?:number})
   if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
  },[chapter,reciterId]);
  useEffect(()=>{
+  setMarkedVerse(0);
   const controller=new AbortController();setLoading(true);setError('');setData(null);setPlaying(false);
   if(audio.current){audio.current.pause();audio.current.removeAttribute('src');audio.current.load()}
   const cached=cache.get(chapter);
@@ -76,7 +78,8 @@ export default function QuranReader({initialChapter=1}:{initialChapter?:number})
   <audio ref={audio} controls preload="none" className="quran-audio" onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onError={()=>{if(audio.current?.src)setAudioError('تعذر تحميل الملف الصوتي لهذا القارئ')}}/>
   {(reciterError||audioError)&&<p className="reader-error" role="alert">{reciterError||audioError}</p>}
   {error&&<div className="reader-error" role="alert">{error} <button onClick={()=>setChapter(n=>n===114?113:n+1)}>جرّب سورة أخرى</button></div>}
-  {loading?<p className="reader-loading" role="status">جارٍ تحميل السورة…</p>:data&&<article className="mushaf" aria-label={'سورة '+data.name}><div className="surah-title">{data.name}</div>{chapter!==1&&chapter!==9&&<p className="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>}<div className="verses" style={{fontSize}}>{data.ayahs.map((a,i)=><React.Fragment key={a.number}><span className="ayah">{a.text} <span className="verse-number">﴿{a.numberInSurah}﴾</span></span>{' '}</React.Fragment>)}</div></article>}
+  {loading?<p className="reader-loading" role="status">جارٍ تحميل السورة…</p>:data&&<article className="mushaf" aria-label={'سورة '+data.name}><div className="surah-title">{data.name}</div>{chapter!==1&&chapter!==9&&<p className="basmala">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>}<div className="verses" style={{fontSize}}>{data.ayahs.map((a,i)=><React.Fragment key={a.number}><span className={markedVerse===a.numberInSurah?'ayah marked-ayah':'ayah'}>{a.text} <button className="verse-number verse-mark" title="تسجيل الوصول إلى هذه الآية" aria-label={'أنجزت حتى الآية '+a.numberInSurah} onClick={()=>{setMarkedVerse(a.numberInSurah);onVerseComplete?.(a.numberInSurah)}}>﴿{a.numberInSurah}﴾</button></span>{' '}</React.Fragment>)}</div></article>}
+  <p className="reader-note">اضغط على رقم الآية لتسجيل وصولك إليها وتحديث مسارك الثلاثي الأبعاد.</p>
   <p className="reader-note">مصدر النص: <a href="https://alquran.cloud/api" target="_blank" rel="noopener noreferrer">Al Quran Cloud (quran-uthmani)</a> · مصدر الصوت: <a href="https://www.mp3quran.net/ar/api" target="_blank" rel="noopener noreferrer">MP3Quran</a>. هذه نسخة تطويرية تحتاج مراجعة نهائية للنص والحقوق قبل الإطلاق الرسمي.</p>
  </div>;
 }
