@@ -8,9 +8,9 @@ type Reciter={id:number;name:string;moshaf:Mushaf[]};
 const requestedReciters=['محمد عبادة','إسلام صبحي','محمد صديق المنشاوي','أحمد بن علي العجمي'];
 const normalize=(name:string)=>name.replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
 const cache=new Map<number,Surah>();
-export default function QuranReader(){
+export default function QuranReader({initialChapter=1}:{initialChapter?:number}){
  const [chapters,setChapters]=useState<Chapter[]>([]);
- const [chapter,setChapter]=useState(1);
+ const [chapter,setChapter]=useState(initialChapter);
  const [data,setData]=useState<Surah|null>(null);
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState('');
